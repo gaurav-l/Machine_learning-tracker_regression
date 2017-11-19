@@ -52,7 +52,7 @@ testing <- read.csv(file = "./tracking_device_testing_data")
 
 Use exploratory data analysis to understand the strucure of the training data. Examine the most important variables/columns and their data.
 
-``````{r EDA, eval = FALSE}
+```{r EDA, eval = FALSE}
 dim(training)
 #[1] 19622   160
 
