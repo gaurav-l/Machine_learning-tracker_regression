@@ -1,0 +1,175 @@
+---
+title: "Fitness data regression - Machine learning"
+author: "Gaurav"
+date: "November 17, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction to project
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+### Project goals
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did.
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+### Load necessary packages
+
+```{r loadPackages, eval = FALSE}
+library(caret);library(ggplot2)
+```
+
+
+### Download and read data
+
+```{r loadData, eval = FALSE}
+## Training data
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile = "./tracking_device_training_data")
+training <- read_csv(file = "./tracking_device_training_data")
+
+
+
+## Testing data
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile = "./tracking_device_testing_data")
+testing <- read.csv(file = "./tracking_device_testing_data")
+```
+
+### Exploratory data analysis
+
+Use exploratory data analysis to understand the strucure of the training data. Examine the most important variables/columns and their data.
+
+``````{r EDA, eval = FALSE}
+dim(training)
+#[1] 19622   160
+
+dim(testing)
+# > dim(testing)
+# [1]  20 160
+
+## Examine the prediction variables
+summary(training$classe)
+# A    B    C    D    E 
+# 5580 3797 3422 3216 3607
+
+
+## Examine users
+summary(training$user_name)
+# adelmo carlitos  charles   eurico   jeremy    pedro 
+# 3892     3112     3536     3070     3402     2610
+```
+
+
+### Clean data
+
+Clean the data by deleting columns which dont seem to be important for regression. This will simplify the process, as well as accelerate the regression itself
+
+```{r clean, eval=FALSE}
+## Delete columns which dont seem to be important for regression
+trainingInitialClean <- subset(training,select=-c(1:4))
+dim(trainingInitialClean)
+#[1] 19622   156
+
+## Delete columns which have a high % of NAs, seeting threshold to 2% NAs
+## Set drop dreshold to 2% of total rows
+dropThreshold <- nrow(training)*.02
+finalTrainData <- trainingInitialClean[, colSums(is.na(trainingInitialClean)) < dropThreshold]
+
+## Dropped 67 columns because of NA values > dropThreshold
+dim(finalTrainData)
+#[1] 19622    89
+```
+
+
+### Slice data into training, testing, validation
+
+I initially sliced 60% data into training, but found that the regression ran for many hours and still didnt finish. I then tried 20% data slice for training, which worked well and I was able to finish the regression.
+
+
+```{r slice, eval=FALSE}
+## 20% training - 40% test - 40% validation
+trainingAndRest <- createDataPartition(y=finalTrainData$classe, p=0.2, list=FALSE)
+trainData <- finalTrainData[trainingAndRest,]
+inTestAndValidation <- finalTrainData[-trainingAndRest,]
+inTestAndValidationIndex <- createDataPartition(y=inTestAndValidation$classe, p=0.5, list=FALSE)
+testData <- inTestAndValidation[inTestAndValidationIndex,]
+valData <- inTestAndValidation[-inTestAndValidationIndex,]
+```
+
+### Create regression model
+
+I used the boosting "gbm" method with the train function to create the regression on the training dataset. I used gbm, as random forest regression was taking too much time despite reducing the testing dataset to 20%. This is because the number of regressors is very large (>80).
+
+```{r regressionModel, eval=FALSE}
+modelGbm <- train(classe ~., method="gbm", data=trainData, verbose=FALSE)
+```
+
+### Cross validation: Predict data and find out of sample error
+
+As part of the cross validation process, Use the model on the testing data to find accuracy of prediction and the out of sample error. As it turns out, we didnt need to use the validation dataset here.
+
+The "predict"" function used the existing regression model to predict values on the testing dataset. The accuracy and other characteristics of the prediction can be examined using the "confusion matrix".
+
+```{r predictAndAnalyze, eval=FALSE}
+predData <- predict(modelGlm , newdata = testData)
+# create confusion matrix
+cfm <- confusionMatrix(testData$classe, predData)
+# print confusion matrix
+cfm 
+
+# Confusion Matrix and Statistics
+# 
+# Reference
+# Prediction    A    B    C    D    E
+# A 2579   31   40    0    1
+# B   99 1595  106    4    0
+# C    0   32 1568   25    0
+# D    0    9   56 1431   32
+# E   17   27   11   35 1623
+# 
+# Overall Statistics
+# 
+# Accuracy : 0.9437          
+# 95% CI : (0.9388, 0.9483)
+# No Information Rate : 0.2891          
+# P-Value [Acc > NIR] : < 2.2e-16       
+# 
+# Kappa : 0.9287          
+# Mcnemar's Test P-Value : NA              
+# 
+# Statistics by Class:
+# 
+#                      Class: A Class: B Class: C Class: D Class: E
+# Sensitivity            0.9570   0.9416   0.8804   0.9572   0.9801
+# Specificity            0.9891   0.9726   0.9924   0.9876   0.9883
+# Pos Pred Value         0.9728   0.8841   0.9649   0.9365   0.9475
+# Neg Pred Value         0.9826   0.9868   0.9723   0.9918   0.9957
+# Prevalence             0.2891   0.1817   0.1911   0.1604   0.1777
+# Detection Rate         0.2767   0.1711   0.1682   0.1535   0.1741
+# Detection Prevalence   0.2844   0.1935   0.1743   0.1639   0.1838
+# Balanced Accuracy      0.9730   0.9571   0.9364   0.9724   0.9842
+
+# Find out of sample error
+OOSError <- 1 - cfm$overall["Accuracy"]
+
+# Print out of sample error
+OOSError
+# 0.05632443 
+```
+
+### Result
+
+Therefore, the accuracy of the prediction is 94.4% and the out of sample error is 5.6%. This model provides reasonably acceptable accuracy. Other regression models such as random forests can be examined and evaluated for accuracy.
