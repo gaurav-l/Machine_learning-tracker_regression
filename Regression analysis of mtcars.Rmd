@@ -1,0 +1,148 @@
+---
+title: "Regression analysis of mtcars"
+author: "Gaurav"
+date: "November 11, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+data(mtcars)
+```
+
+## Executive summary
+
+Motor Trend is a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+
+- "Is an automatic or manual transmission better for MPG"
+- "Quantify the MPG difference between automatic and manual transmissions"
+
+
+#### Major steps taken for analysis
+- Conduct exploratory analysis to understand data
+- Find out which factors most impact MPG, select these for further analysis
+- Create a regression model that explores relation of selected variables with MPG
+- Critique the regression model
+
+Based on analysis of provided dataset, it was found that "#of cylenders"" and "weight"" of the car most influence the MPG. The difference in MPG between automatic and manual transmissions is just 0.176.  Since the influence of transmisssion type is pretty low, cars with automatic and manual transmissions are similar in MPG.
+
+
+### Conduct exploratory analysis to understand data
+
+Use the following to understand the data:
+
+- head(mtcars) - Look at the top 6 rows of data
+- ?mtcars - Review column definetions
+- summary(mtcars$mpg) - See quantiles of MPG
+
+
+
+### Find which variables most influence MPG
+
+In order to find which variables most influence MPG, we used ANOVA (details in APPENDIX), a technique that helps understand which variables contribute most significantly to the varience.
+
+Looking at results of ANOVA, we notice that cyl, wt, disp have the highest Sum of squares and also have the lowest P values (all < .05). This means that these three are the most important influencers on MPG in the dataset, we'll explore these variables further.
+
+### Create and test regression models with selected variables
+
+Now that we know which variables most influence MPG, we further seek to understand which of these variables should be included in the model. To do this, we created several regression models, each with a different set of the selected variables. We are interested in knowing which ofthese models have the highest R squared, which explains how much of the total variance of MPG is explained by the model.
+
+We  see that model 1 has a R squared value of .82, meaning that it explains 82% of the variance. It is alsothe highest R squared of all the 7 models. Furthermore, this is a simple model, containing just 2 variables cyl and wt. We'll go ahead with this model, and just add the variable am for transmission. Addition of this variable has only a small impact on R squared.
+
+
+### Understand coefficients of selected regression model
+
+```{r understandModel, echo=TRUE}
+model8 <- lm(mpg ~ cyl + wt + am, data = mtcars)
+summary(model8)$coef
+```
+
+As you can see, the estimates of coefficients explain how much each variable contributes to the variation in MPG. The P values show the reliability/uncertainity of the estimate. Estimates are typically considered reliable where p value < .05
+
+- Weight: MPG changes by -3.12(i.e. decreasees) with increase of weight by a ton  
+- No. of cylenders: There's a change of -1.51 (i.e. decrease) with increase of cylenders from 4,6,8 
+- Transmission: With change of transmission between manual and automatic, MPG changes by .17 only
+
+
+### Analyze residuals
+Analysis of residuals provides insights into cars that are outliers for the selected regression model. We find that the following are important outliers, as they have the highest dfbetas:
+
+- Chrysler Imperial 
+- Volvo 142E 
+- Toyota Corona
+
+Seperately, Lincon Continintal has the highest hatvalue.
+
+Refer to APPENDIX for diagnostic plots of residuals.
+
+
+
+# APPENDIX
+
+###Exploratory analysis of data
+```{r carsEDA}
+max(mtcars$mpg)
+summary(mtcars$mpg)
+```
+
+### Find which variables most influence MPG
+
+In order to find which variables most influence MPG, we used ANOVA (details in APPENDIX), a technique that helps understand which variables contribute most significantly to the varience.
+
+```{r pressure, echo=TRUE}
+fitAll <- lm(mpg~., data = mtcars)
+anova(fitAll)
+```
+We see that cyl, wt, disp have the highest Sum of squares and also have the lowest P values (all < .05). This means that these three are the most important influencers on MPG in the dataset, we'll explore these variables further.
+
+
+### Create and test regression models with selected variables
+
+Now that we know which variables most influence MPG, we further seek to understand which of these variables should be included in the model. To do this, we created several regression models, each with a different set of the selected variables. We are interested in knowing which ofthese models have the highest R squared, which explains how much of the total variance of MPG is explained by the model.
+
+
+```{r modelANOVAApdx, echo=TRUE}
+model1 <- lm(mpg~cyl + wt, data = mtcars)
+model2 <- lm(mpg~cyl + disp, data = mtcars)
+model3 <- lm(mpg~disp + wt, data = mtcars)
+model4 <- lm(mpg~cyl + disp + wt, data = mtcars)
+model5 <- lm(mpg~cyl, data = mtcars)  
+model6 <- lm(mpg~disp, data = mtcars)          
+model7 <- lm(mpg~wt, data = mtcars)  
+
+summary(model1)$adj.r.squared 
+```
+
+We  see that model 1 has a R squared value of .82, meaning that it explains 82% of the variance. It is alsothe highest R squared of all the 7 models. Furthermore, this is a simple model, containing just 2 variables cyl and wt. We'll go ahead with this model, and just add the variable am for transmission. Addition of this variable has only a small impact on R squared.
+
+
+### Understand coefficients of selected regression model
+
+```{r understandModelApdx, echo=TRUE}
+model8 <- lm(mpg ~ cyl + wt + am, data = mtcars)
+summary(model8)$coef
+```
+
+As you can see, the estimates of coefficients explain how much each variable contributes to the variation in MPG.
+
+- Weight: MPG changes by -3.12(i.e. decreasees) with increase of weight by a ton  
+- No. of cylenders: There's a change of -1.51 (i.e. decrease) with increase of cylenders from 4,6,8 
+- Transmission: With change of transmission between manual and automatic, MPG changes by .17 only
+
+### Analyze residuals
+Analysis of residuals provides insights into cars that are outliers for the selected regression model. We find that the following are important outliers, as they have the highest dfbetas:
+
+- Chrysler Imperial 
+- Volvo 142E 
+- Toyota Corona
+
+```{r hatvaluesApdx, echo=TRUE}
+which.max(hatvalues(model8))
+```
+
+Seperately, Lincon Continintal has the highest hatvalue.
+
+```{r plotResidualsApdx, echo=TRUE}
+par(mfrow = c(2, 2))
+plot(model8)
+```
